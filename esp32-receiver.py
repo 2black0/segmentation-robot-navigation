@@ -1,52 +1,48 @@
 import socket
 import network
-import time
 
-# Replace with your WiFi credentials
-SSID = "Your_SSID"
-PASSWORD = "Your_PASSWORD"
+def connect_to_wifi(ssid, password):
+    station = network.WLAN(network.STA_IF)
+    station.active(True)
+    station.connect(ssid, password)
 
-# Connect to WiFi
-def connect_wifi():
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
-    if not wlan.isconnected():
-        print("Connecting to WiFi...")
-        wlan.connect(SSID, PASSWORD)
-        while not wlan.isconnected():
-            time.sleep(0.5)
-            print(".", end="")
-    print("\nWiFi connected!")
-    print("IP address:", wlan.ifconfig()[0])
+    while not station.isconnected():
+        pass
 
-# Start a TCP server
+    print('Connection successful')
+    print(station.ifconfig())
+
 def start_server():
-    host = ''  # Listen on all available interfaces
-    port = 8080
-
-    # Create socket
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((host, port))
-    server_socket.listen(1)  # Allow one client
-    print(f"Server listening on port {port}...")
-
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('', 80))
+    s.listen(1)
+    
+    #print('Waiting for connections...')
     while True:
-        print("Waiting for a connection...")
-        client_socket, client_address = server_socket.accept()
-        print(f"Connection from {client_address}")
-
+        conn, addr = s.accept()
+        #print('Connected by', addr)
         try:
             while True:
-                data = client_socket.recv(1024)  # Buffer size 1024 bytes
+                data = conn.recv(1024)
                 if not data:
                     break
-                print(f"Received: {data.decode('utf-8')}")
+                data_string = data.decode('utf-8')  # Convert bytes to string
+                #print('Received:', data_string)
+                # Parsing the data
+                if data_string.startswith('#') and '$' in data_string:
+                    parts = data_string[1:].split('$')  # Remove '#' and split at '$'
+                    if len(parts) == 2:
+                        data1 = int(parts[0])
+                        data2 = int(parts[1])
+                        print('Data1:', data1, 'Data2:', data2)
+                conn.send(b'ACK')  # Send acknowledgment after processing
         except Exception as e:
-            print(f"Error: {e}")
+            print('Error:', str(e))
         finally:
-            print("Closing connection...")
-            client_socket.close()
+            conn.close()
+            #print('Connection closed, waiting for next connection...')
 
-if __name__ == "__main__":
-    connect_wifi()
-    start_server()
+ssid = 'Wifi-Roboto'
+password = 'arDY1234'
+connect_to_wifi(ssid, password)
+start_server()
