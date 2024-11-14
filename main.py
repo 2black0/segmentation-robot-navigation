@@ -36,29 +36,29 @@ def start_server():
     
     #print('Waiting for connections...')
     while True:
+        c = uart.read(1)
+        if c and c[0] == 0x20:  # Pastikan data terbaca dan byte pertama adalah 0x20
+            uart.readinto(buffer)
+            checksum = 0xFFFF - 0x20
+            for i in range(29):
+                checksum -= buffer[i]
+            
+            # Perbaikan validasi checksum
+            if checksum == ((buffer[30] << 8) | buffer[29]):
+                # Perbaikan logika, `skip` diganti karena Python tidak mengenalnya
+                buffer[0] = 0x40
+                ch1 = buffer[2] * 256 + buffer[1]
+                ch2 = buffer[4] * 256 + buffer[3]
+                ch3 = buffer[6] * 256 + buffer[5]
+                ch4 = buffer[8] * 256 + buffer[7]
+                ch5 = buffer[10] * 256 + buffer[9]
+                ch6 = buffer[12] * 256 + buffer[11]
+                print(f'ch 1 - {ch1}  2 - {ch2}  3 - {ch3}  4 - {ch4}  5 - {ch5}  6 - {ch6}')
+        
         conn, addr = s.accept()
         #print('Connected by', addr)
         try:
-            while True:
-                c = uart.read(1)
-                if c and c[0] == 0x20:  # Pastikan data terbaca dan byte pertama adalah 0x20
-                    uart.readinto(buffer)
-                    checksum = 0xFFFF - 0x20
-                    for i in range(29):
-                        checksum -= buffer[i]
-                    
-                    # Perbaikan validasi checksum
-                    if checksum == ((buffer[30] << 8) | buffer[29]):
-                        # Perbaikan logika, `skip` diganti karena Python tidak mengenalnya
-                        buffer[0] = 0x40
-                        ch1 = buffer[2] * 256 + buffer[1]
-                        ch2 = buffer[4] * 256 + buffer[3]
-                        ch3 = buffer[6] * 256 + buffer[5]
-                        ch4 = buffer[8] * 256 + buffer[7]
-                        ch5 = buffer[10] * 256 + buffer[9]
-                        ch6 = buffer[12] * 256 + buffer[11]
-                        print(f'ch 1 - {ch1}  2 - {ch2}  3 - {ch3}  4 - {ch4}  5 - {ch5}  6 - {ch6}')
-                
+            while True:                
                 data = conn.recv(1024)
                 if not data:
                     break
