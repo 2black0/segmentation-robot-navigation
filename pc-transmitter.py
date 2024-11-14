@@ -2,7 +2,7 @@ import socket
 import time
 import random
 
-HOST = '192.168.100.48'  # IP address of your ESP32
+HOST = '192.168.115.24'  # IP address of your ESP32
 PORT = 80                # Port number where the ESP32 server is listening
 
 def send_data(data):

@@ -51,5 +51,5 @@ def previewcam(previewname, camid):
     cv2.destroyWindow(previewname)
 
 # Create different threads for each video stream, then start it.
-thread1 = CamThread("FrontCamera", 'rtsp://192.168.100.47:8554/cam')
+thread1 = CamThread("FrontCamera", 'rtsp://192.168.115.117:8554/cam')
 thread1.start()

@@ -1,5 +1,14 @@
 import socket
 import network
+from ota import OTAUpdater
+
+SSID = 'POCOF5'
+PASSWORD = '1234567890'
+#firmware_url = "https://raw.githubusercontent.com/2black0/ota-esp32/"
+firmware_url = "https://github.com/2black0/segmentation-robot-navigation"
+
+ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.mpy")
+ota_updater.download_and_install_update_if_available()
 
 def connect_to_wifi(ssid, password):
     station = network.WLAN(network.STA_IF)
@@ -42,7 +51,5 @@ def start_server():
             conn.close()
             #print('Connection closed, waiting for next connection...')
 
-ssid = 'POCOF5'
-password = '1234567890'
-connect_to_wifi(ssid, password)
+connect_to_wifi(SSID, PASSWORD)
 start_server()
