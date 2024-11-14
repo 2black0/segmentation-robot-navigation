@@ -43,7 +43,7 @@ def start_server():
                     if len(parts) == 2:
                         data1 = int(parts[0])
                         data2 = int(parts[1])
-                        print('Data1:', data1, 'Data2:', data2)
+                        print('Data1:', data1, '# Data2:', data2)
                 conn.send(b'ACK')  # Send acknowledgment after processing
         except Exception as e:
             print('Error:', str(e))
