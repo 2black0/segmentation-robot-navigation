@@ -40,20 +40,6 @@ def start_server():
         #print('Connected by', addr)
         try:
             while True:
-                data = conn.recv(1024)
-                if not data:
-                    break
-                data_string = data.decode('utf-8')  # Convert bytes to string
-                #print('Received:', data_string)
-                # Parsing the data
-                if data_string.startswith('#') and '$' in data_string:
-                    parts = data_string[1:].split('$')  # Remove '#' and split at '$'
-                    if len(parts) == 2:
-                        data1 = int(parts[0])
-                        data2 = int(parts[1])
-                        print('Data1:', data1, '# Data2:', data2)
-                conn.send(b'ACK')  # Send acknowledgment after processing
-                
                 c = uart.read(1)
                 if c and c[0] == 0x20:  # Pastikan data terbaca dan byte pertama adalah 0x20
                     uart.readinto(buffer)
@@ -71,8 +57,21 @@ def start_server():
                         ch4 = buffer[8] * 256 + buffer[7]
                         ch5 = buffer[10] * 256 + buffer[9]
                         ch6 = buffer[12] * 256 + buffer[11]
-
                         print(f'ch 1 - {ch1}  2 - {ch2}  3 - {ch3}  4 - {ch4}  5 - {ch5}  6 - {ch6}')
+                
+                data = conn.recv(1024)
+                if not data:
+                    break
+                data_string = data.decode('utf-8')  # Convert bytes to string
+                #print('Received:', data_string)
+                # Parsing the data
+                if data_string.startswith('#') and '$' in data_string:
+                    parts = data_string[1:].split('$')  # Remove '#' and split at '$'
+                    if len(parts) == 2:
+                        data1 = int(parts[0])
+                        data2 = int(parts[1])
+                        print('Data1:', data1, '# Data2:', data2)
+                conn.send(b'ACK')  # Send acknowledgment after processing
                 
         except Exception as e:
             print('Error:', str(e))
