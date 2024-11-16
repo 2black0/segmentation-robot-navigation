@@ -1,10 +1,13 @@
 import cv2
 import threading
-import requests
 import time
+import paho.mqtt.client as mqtt
 
-# Server URL untuk mengirimkan data kecepatan motor kanan dan kiri
-SERVER_URL = "http://192.168.115.24/setSpeed"  # IP ESP32
+# MQTT Broker
+MQTT_BROKER = "192.168.100.1"
+MQTT_PORT = 1883
+MQTT_TOPIC_RIGHT = "MotorKanan"
+MQTT_TOPIC_LEFT = "MotorKiri"
 
 # Interval pengiriman data dalam detik
 SEND_INTERVAL = 1
@@ -12,18 +15,15 @@ SEND_INTERVAL = 1
 # Variabel global untuk mencatat waktu pengiriman terakhir
 last_send_time = 0
 
-# Fungsi untuk mengirimkan data ke server dengan verifikasi
+# Fungsi untuk mengirimkan data ke MQTT broker
 def send_speed_data(right_speed, left_speed):
     try:
-        # Mengirimkan data ke server
-        response = requests.get(SERVER_URL, params={'RightSpeed': right_speed, 'LeftSpeed': left_speed}, timeout=2)
-        if response.status_code == 200:
-            # Verifikasi respons dari server
-            print(f"Data sent successfully: RightSpeed = {right_speed}, LeftSpeed = {left_speed}")
-        else:
-            print(f"Failed to send data. HTTP status: {response.status_code}")
-    except requests.exceptions.RequestException as e:
-        print(f"Error sending data: {e}")
+        # Kirim data ke MQTT broker
+        client.publish(MQTT_TOPIC_RIGHT, right_speed)
+        client.publish(MQTT_TOPIC_LEFT, left_speed)
+        print(f"Data sent via MQTT: RightSpeed = {right_speed}, LeftSpeed = {left_speed}")
+    except Exception as e:
+        print(f"Error sending data via MQTT: {e}")
 
 # Define class for the camera thread
 class CamThread(threading.Thread):
@@ -66,6 +66,24 @@ def previewcam(previewname, camid):
         if key == 27:  # Tekan ESC untuk keluar dan menutup jendela
             break
     cv2.destroyWindow(previewname)
+
+# MQTT on_connect callback
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        print("Connected to MQTT Broker!")
+    else:
+        print(f"Failed to connect, return code {rc}")
+
+# MQTT client setup
+client = mqtt.Client()
+client.on_connect = on_connect
+
+try:
+    client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
+    client.loop_start()  # Start MQTT loop
+except Exception as e:
+    print(f"Error connecting to MQTT broker: {e}")
+    exit(1)
 
 # Create different threads for each video stream, then start it
 thread1 = CamThread("FrontCamera", 'rtsp://camera:CAMera123@192.168.115.7/live/ch00_1')
