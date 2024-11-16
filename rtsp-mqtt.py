@@ -18,10 +18,15 @@ last_send_time = 0
 # Fungsi untuk mengirimkan data ke MQTT broker
 def send_speed_data(right_speed, left_speed):
     try:
-        # Kirim data ke MQTT broker
-        client.publish(MQTT_TOPIC_RIGHT, right_speed)
-        client.publish(MQTT_TOPIC_LEFT, left_speed)
-        print(f"Data sent via MQTT: RightSpeed = {right_speed}, LeftSpeed = {left_speed}")
+        # Kirim data dengan QoS 1 untuk memastikan penerimaan
+        result_right = client.publish(MQTT_TOPIC_RIGHT, right_speed, qos=1)
+        result_left = client.publish(MQTT_TOPIC_LEFT, left_speed, qos=1)
+        
+        # Periksa hasil pengiriman
+        if result_right.rc == 0 and result_left.rc == 0:
+            print(f"Data sent via MQTT: RightSpeed = {right_speed}, LeftSpeed = {left_speed}")
+        else:
+            print("Failed to send data. MQTT client returned an error.")
     except Exception as e:
         print(f"Error sending data via MQTT: {e}")
 
@@ -74,9 +79,14 @@ def on_connect(client, userdata, flags, rc):
     else:
         print(f"Failed to connect, return code {rc}")
 
+# MQTT on_publish callback
+def on_publish(client, userdata, mid):
+    print(f"Message {mid} successfully published.")
+
 # MQTT client setup
 client = mqtt.Client()
 client.on_connect = on_connect
+client.on_publish = on_publish  # Callback untuk memverifikasi pengiriman
 
 try:
     client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
