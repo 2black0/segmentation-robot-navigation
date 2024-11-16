@@ -1,5 +1,3 @@
-#!/usr/bin/env python -c
-
 # Import OpenCV and threading packages
 import cv2
 import threading
@@ -34,6 +32,5 @@ def previewcam(previewname, camid):
     cv2.destroyWindow(previewname)
 
 # Create different threads for each video stream, then start it.
-#thread1 = CamThread("FrontCamera", 'rtsp://192.168.115.117:8554/cam')
-thread1 = CamThread("FrontCamera", 'rtsp://camera:CAMera123@192.168.1.1:554/live/ch00_1')
+thread1 = CamThread("FrontCamera", 'rtsp://camera:CAMera123@192.168.115.7/live/ch00_1')
 thread1.start()
