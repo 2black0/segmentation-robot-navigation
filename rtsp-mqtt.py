@@ -4,7 +4,7 @@ import time
 import paho.mqtt.client as mqtt
 
 # MQTT Broker
-MQTT_BROKER = "192.168.100.1"
+MQTT_BROKER = "192.168.100.27"
 MQTT_PORT = 1883
 MQTT_TOPIC_RIGHT = "MotorKanan"
 MQTT_TOPIC_LEFT = "MotorKiri"
@@ -66,7 +66,7 @@ def previewcam(previewname, camid):
             last_send_time = current_time  # Perbarui waktu pengiriman terakhir
         
         # Menampilkan perubahan data di konsol
-        print(f"Previewing video: {previewname}")
+        #print(f"Previewing video: {previewname}")
 
         if key == 27:  # Tekan ESC untuk keluar dan menutup jendela
             break

@@ -21,7 +21,7 @@ const char* SsId = "POCOF5";
 const char* Password = "1234567890";
 
 // MQTT broker
-const char* MqttBroker = "192.168.100.1";
+const char* MqttBroker = "192.168.100.27";
 const int MqttPort = 1883;
 
 // MQTT topics
