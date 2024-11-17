@@ -1,136 +1,111 @@
 import cv2
-import threading
-import time
 import numpy as np
-import paho.mqtt.client as mqtt
 
-# MQTT Broker
-MQTT_BROKER = "192.168.100.27"
-MQTT_PORT = 1883
-MQTT_TOPIC_RIGHT = "MotorKanan"
-MQTT_TOPIC_LEFT = "MotorKiri"
+class LineFollowerRobot:
+    def __init__(self, rtsp_url, total_sections=10, active_sections=None):
+        # RTSP URL
+        self.rtsp_url = rtsp_url
 
-# Kendali
-SEND_INTERVAL = 0.1  # Interval pengiriman data ke MQTT dalam detik
-KP = 0.5             # Koefisien kendali proporsional
-CONTROL_MIN = 20     # Batas minimal kecepatan motor
-CONTROL_MAX = 100    # Batas maksimal kecepatan motor
+        # Frame parameters
+        self.frame_width = 640
+        self.frame_height = 480
 
-# Variabel global
-last_send_time = 0
-frame_width = 640  # Asumsi lebar frame video
-frame_height = 480  # Asumsi tinggi frame video
-crop_height = 50    # Tinggi crop horizontal
-num_section = 1     # Fokus hanya pada satu bagian horizontal
-
-# MQTT setup
-def setup_mqtt():
-    client = mqtt.Client()
-    client.on_connect = on_connect
-    client.on_publish = on_publish
-    try:
-        client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
-        client.loop_start()
-    except Exception as e:
-        print(f"Error connecting to MQTT broker: {e}")
-        exit(1)
-    return client
-
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
-        print("Connected to MQTT Broker!")
-    else:
-        print(f"Failed to connect, return code {rc}")
-
-def on_publish(client, userdata, mid):
-    print(f"Message {mid} successfully published.")
-
-# Fungsi untuk mengirimkan data ke MQTT broker
-def send_speed_data(client, right_speed, left_speed):
-    try:
-        result_right = client.publish(MQTT_TOPIC_RIGHT, right_speed, qos=1)
-        result_left = client.publish(MQTT_TOPIC_LEFT, left_speed, qos=1)
-        if result_right.rc == 0 and result_left.rc == 0:
-            print(f"Data sent via MQTT: RightSpeed = {right_speed}, LeftSpeed = {left_speed}")
+        # Jumlah total bagian dan bagian aktif
+        self.total_sections = total_sections
+        self.section_height = self.frame_height // self.total_sections  # Tinggi setiap bagian = 48 px
+        if active_sections is None:
+            # Default ke semua bagian jika active_sections tidak diberikan
+            self.active_sections = list(range(1, total_sections + 1))
         else:
-            print("Failed to send data. MQTT client returned an error.")
-    except Exception as e:
-        print(f"Error sending data via MQTT: {e}")
+            self.active_sections = active_sections
 
-# Fungsi untuk memproses frame dan mendeteksi garis hitam
-def process_frame(frame, client):
-    global last_send_time
+        # Rentang warna hitam dalam HSV
+        self.lower_black = np.array([0, 0, 0])     # Rentang bawah warna hitam
+        self.upper_black = np.array([180, 255, 50])  # Rentang atas warna hitam
 
-    # Konversi ke grayscale
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    def draw_sections(self, frame):
+        """Draw active sections on the frame with blue rectangles."""
+        for section in self.active_sections:
+            # Bagian dihitung dari bawah (1 = bagian paling bawah)
+            y_start = self.frame_height - (section * self.section_height)
+            y_end = y_start + self.section_height
 
-    # Otsu's thresholding untuk mendapatkan binary image
-    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+            # Gambar kotak dengan garis biru
+            cv2.rectangle(frame, (0, y_start), (self.frame_width, y_end), (255, 0, 0), 2)
 
-    # Bagian horizontal untuk deteksi
-    y_start = frame_height - crop_height
-    y_end = frame_height
-    crop = binary[y_start:y_end, :]
-    
-    # Overlay bounding box pada area crop
-    cv2.rectangle(frame, (0, y_start), (frame_width, y_end), (0, 255, 0), 2)
+        return frame
 
-    # Deteksi posisi garis hitam menggunakan moments
-    moments = cv2.moments(crop)
-    if moments["m00"] > 0:
-        center_x = int(moments["m10"] / moments["m00"])
-        cv2.circle(frame, (center_x, y_start + crop_height // 2), 5, (0, 0, 255), -1)
-    else:
-        center_x = frame_width // 2  # Default ke tengah jika tidak terdeteksi
+    def process_active_sections(self, frame):
+        """Process only the active sections for black color detection using HSV."""
+        mask = np.ones(frame.shape[:2], dtype="uint8") * 255  # Mask untuk bagian luar aktif
+        overlay = frame.copy()  # Salinan frame untuk overlay
 
-    # Kendali proporsional berdasarkan nilai tengah
-    error = frame_width // 2 - center_x
-    control = KP * error
-    right_speed = int(np.clip(CONTROL_MIN + control, CONTROL_MIN, CONTROL_MAX))
-    left_speed = int(np.clip(CONTROL_MIN - control, CONTROL_MIN, CONTROL_MAX))
+        # Konversi frame ke HSV
+        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-    # Kirim data kecepatan motor jika interval tercapai
-    current_time = time.time()
-    if current_time - last_send_time >= SEND_INTERVAL:
-        send_speed_data(client, right_speed, left_speed)
-        last_send_time = current_time
+        for section in self.active_sections:
+            # Bagian dihitung dari bawah (1 = bagian paling bawah)
+            y_start = self.frame_height - (section * self.section_height)
+            y_end = y_start + self.section_height
 
-    return frame
+            # Region of Interest (ROI) untuk bagian aktif
+            roi = hsv_frame[y_start:y_end, :]
 
-# Fungsi untuk menampilkan video dan menjalankan deteksi
-def preview_camera(camid, client):
-    cap = cv2.VideoCapture(camid)
-    if not cap.isOpened():
-        print("Error: Camera not accessible")
-        return
+            # Mask untuk mendeteksi warna hitam
+            black_mask = cv2.inRange(roi, self.lower_black, self.upper_black)
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
+            # Tambahkan overlay warna hijau untuk area hitam yang terdeteksi
+            overlay[y_start:y_end, :] = cv2.addWeighted(overlay[y_start:y_end, :], 0.7, 
+                                                        np.dstack([black_mask] * 3), 0.3, 0)
 
-        frame = process_frame(frame, client)
-        cv2.imshow("Camera", frame)
+            # Area aktif tetap pada frame utama, sisanya dibuat putih
+            mask[y_start:y_end, :] = 0
 
-        if cv2.waitKey(1) == 27:  # Tekan ESC untuk keluar
-            break
+        # Bagian di luar area aktif diubah menjadi putih
+        frame[np.where(mask == 255)] = [255, 255, 255]
 
-    cap.release()
-    cv2.destroyAllWindows()
-
-# Thread kamera
-class CameraThread(threading.Thread):
-    def __init__(self, camid, client):
-        threading.Thread.__init__(self)
-        self.camid = camid
-        self.client = client
+        # Kembali frame dengan overlay
+        return frame
 
     def run(self):
-        preview_camera(self.camid, self.client)
+        """Main loop for the robot."""
+        cap = cv2.VideoCapture(self.rtsp_url)
+        if not cap.isOpened():
+            print("Error: Camera not accessible")
+            return
 
-# Main program
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                print("Error: Unable to capture frame")
+                break
+
+            # Resize frame untuk memastikan ukuran konsisten
+            frame = cv2.resize(frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_LINEAR)
+
+            # Frame Original dengan Kotak Biru
+            original_frame = self.draw_sections(frame.copy())
+
+            # Frame dengan Bagian Luar Putih dan Deteksi Warna Hitam
+            processed_frame = self.process_active_sections(frame.copy())
+
+            # Tampilkan hasil deteksi
+            cv2.imshow("Original Frame with Active Sections", original_frame)
+            cv2.imshow("Processed Frame with Black Detection (HSV)", processed_frame)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):  # Tekan 'q' untuk keluar
+                break
+
+        cap.release()
+        cv2.destroyAllWindows()
+
 if __name__ == "__main__":
-    client = setup_mqtt()
+    # Replace with your RTSP URL
     rtsp_url = 'rtsp://camera:CAMera123@192.168.115.7/live/ch00_1'
-    camera_thread = CameraThread(rtsp_url, client)
-    camera_thread.start()
+
+    # Konfigurasi total bagian dan bagian yang ingin di-overlay
+    total_sections = 10
+    active_sections = [2, 7]  # Bagian aktif: 2 dan 7
+
+    robot = LineFollowerRobot(rtsp_url, total_sections=total_sections, active_sections=active_sections)
+    robot.run()
