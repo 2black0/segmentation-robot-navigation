@@ -2,7 +2,7 @@ import cv2
 from ultralytics import YOLO
 
 # Load the YOLOv11 model (sesuaikan dengan path model Anda)
-model_path = "best.pt"  # Ganti dengan path model Anda
+model_path = "python-code\model-v1.pt"  # Ganti dengan path model Anda
 model = YOLO(model_path)
 
 # Buka kamera USB

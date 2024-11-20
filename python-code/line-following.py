@@ -101,8 +101,8 @@ class LineFollowerRobot:
 
 if __name__ == "__main__":
     # Replace with your RTSP URL
-    rtsp_url = 'rtsp://camera:CAMera123@192.168.115.7/live/ch00_1'
-
+    #rtsp_url = 'rtsp://camera:CAMera123@192.168.115.7/live/ch00_1'
+    rtsp_url = 0
     # Konfigurasi total bagian dan bagian yang ingin di-overlay
     total_sections = 10
     active_sections = [2, 7]  # Bagian aktif: 2 dan 7
