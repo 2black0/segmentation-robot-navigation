@@ -22,6 +22,8 @@ int ModeValue;
 int ThrottleMapValue;
 int TurnMapValue;
 
+float TrimValue = 0.0; 
+
 void setup() {
   Serial.begin(115200);
   crsfSerial.begin(CRSF_BAUDRATE, SERIAL_8N1, ELRS_RX_PIN, ELRS_TX_PIN);
@@ -36,12 +38,14 @@ void loop() {
     SafetyValue = crsf.getChannel(5);
     ModeValue = crsf.getChannel(6);
 
+    TrimValue = 0.0205 * ThrottleMapValue + 0.0769;
+
     if (SafetyValue >= 1800){
       ThrottleMapValue = map(ThrottleValue, 1000, 2000, 0, 200);
       TurnMapValue = map(TurnValue, 1000, 2000, -100, 100);
 
-      ForwardRight(constrain(ThrottleMapValue - TurnMapValue, 0, 250));
-      ForwardLeft(constrain(ThrottleMapValue + TurnMapValue, 0, 250));
+      ForwardRight(constrain(ThrottleMapValue - TurnMapValue - TrimValue, 0, 250));
+      ForwardLeft(constrain(ThrottleMapValue + TurnMapValue + TrimValue, 0, 250));
     } else {
       ForwardRight(0);
       ForwardLeft(0);
